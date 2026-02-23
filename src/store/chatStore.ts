@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { claude, Message } from '../services/ai/claude';
+import { agentCore } from '../agent/core';
 
 interface ChatMessage {
   id: string;
@@ -44,6 +45,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
+      // Track user action for routine learning
+      const now = new Date();
+      agentCore.trackAction({
+        type: 'chat_message',
+        data: { hour: now.getHours(), dayOfWeek: now.getDay() },
+      }).catch(() => {}); // Fire and forget
+
       const response = await claude.sendMessage(text);
 
       const assistantMessage: ChatMessage = {

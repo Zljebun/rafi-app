@@ -1,6 +1,9 @@
 import { db } from '../storage/database';
 import { calendar } from '../phone/calendar';
 import { notifications } from '../phone/notifications';
+import { scheduler } from '../../agent/scheduler';
+import { optimizer } from '../../agent/optimizer';
+import { agentCore } from '../../agent/core';
 
 // Claude tool definitions for RAFI agent
 export const tools = [
@@ -243,6 +246,44 @@ export const tools = [
       required: ['key', 'value'],
     },
   },
+
+  // --- Schedule & Optimization ---
+  {
+    name: 'suggest_schedule',
+    description:
+      'Predlaže optimalan raspored za danas na osnovu prioriteta zadataka. Koristi za "organizuj mi dan", "napravi raspored".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_productivity_score',
+    description:
+      'Vraća ocjenu produktivnosti korisnika baziranu na završenim/nezavršenim zadacima.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_insights',
+    description:
+      'Vraća personalizirane uvide i savjete za korisnika. Koristi za "daj mi savjet", "kako mogu biti produktivniji".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_daily_summary',
+    description:
+      'Vraća dnevni pregled: broj obaveza, završeno danas, podsjetnici, savjeti. Koristi za "dnevni pregled", "šta imam danas", "sumiraj mi dan".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
 ];
 
 // Tool execution handler
@@ -346,6 +387,19 @@ export async function handleToolCall(
           success: true,
           message: `Zapamtio sam: ${input.key} = ${input.value}`,
         };
+
+      // Schedule & Optimization
+      case 'suggest_schedule':
+        return scheduler.suggestSchedule();
+
+      case 'get_productivity_score':
+        return scheduler.getProductivityScore();
+
+      case 'get_insights':
+        return optimizer.getInsights();
+
+      case 'get_daily_summary':
+        return agentCore.getDailySummary();
 
       default:
         return { error: `Nepoznat tool: ${toolName}` };

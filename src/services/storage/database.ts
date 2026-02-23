@@ -78,6 +78,13 @@ class DatabaseService {
         content TEXT NOT NULL,
         created_at TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS action_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        data TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
   }
 
@@ -247,6 +254,45 @@ class DatabaseService {
       [key]
     );
     return result?.value ?? null;
+  }
+
+  // Action Log (for routine learning)
+  async logAction(type: string, data: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    await this.db.runAsync(
+      'INSERT INTO action_log (type, data) VALUES (?, ?)',
+      [type, data]
+    );
+  }
+
+  async getRecentActions(
+    limit: number
+  ): Promise<Array<{ id: number; type: string; data: string; created_at: string }>> {
+    if (!this.db) throw new Error('Database not initialized');
+    return this.db.getAllAsync(
+      'SELECT * FROM action_log ORDER BY created_at DESC LIMIT ?',
+      [limit]
+    );
+  }
+
+  // Routines (save/update)
+  async saveRoutine(routine: {
+    name: string;
+    pattern: string;
+    frequency: string;
+    lastOccurrence: string;
+  }): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    // Upsert by name
+    await this.db.runAsync(
+      `INSERT INTO routines (name, pattern, frequency, last_occurrence)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         pattern = excluded.pattern,
+         frequency = excluded.frequency,
+         last_occurrence = excluded.last_occurrence`,
+      [routine.name, routine.pattern, routine.frequency, routine.lastOccurrence]
+    );
   }
 }
 
