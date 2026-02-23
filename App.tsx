@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from './src/services/storage/database';
+import { notifications } from './src/services/phone/notifications';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
@@ -12,7 +13,11 @@ const Tab = createBottomTabNavigator();
 
 export default function App() {
   useEffect(() => {
-    db.init().catch(console.error);
+    async function init() {
+      await db.init();
+      await notifications.init();
+    }
+    init().catch(console.error);
   }, []);
 
   return (

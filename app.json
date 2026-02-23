@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "rafi-app",
+    "name": "RAFI",
     "slug": "rafi-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,24 +10,48 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#6C63FF"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "RAFI koristi kalendar za organizaciju tvojih obaveza i događaja.",
+        "NSMicrophoneUsageDescription": "RAFI koristi mikrofon za glasovni unos zadataka.",
+        "NSSpeechRecognitionUsageDescription": "RAFI koristi prepoznavanje govora za glasovne komande."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6C63FF"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "RECORD_AUDIO",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "RAFI koristi kalendar za organizaciju tvojih obaveza."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6C63FF"
+        }
+      ]
     ]
   }
 }

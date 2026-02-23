@@ -143,6 +143,60 @@ class DatabaseService {
     return { success: true, message: `Zadatak #${taskId} označen kao završen.` };
   }
 
+  async editTask(
+    taskId: number,
+    updates: {
+      title?: string;
+      description?: string;
+      dueDate?: string;
+      priority?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const sets: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (updates.title) {
+      sets.push('title = ?');
+      params.push(updates.title);
+    }
+    if (updates.description !== undefined) {
+      sets.push('description = ?');
+      params.push(updates.description);
+    }
+    if (updates.dueDate !== undefined) {
+      sets.push('due_date = ?');
+      params.push(updates.dueDate);
+    }
+    if (updates.priority) {
+      sets.push('priority = ?');
+      params.push(updates.priority);
+    }
+
+    if (sets.length === 0) {
+      return { success: false, message: 'Nema promjena za ažuriranje.' };
+    }
+
+    params.push(taskId);
+    await this.db.runAsync(
+      `UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`,
+      params
+    );
+
+    return { success: true, message: `Zadatak #${taskId} ažuriran.` };
+  }
+
+  async deleteTask(
+    taskId: number
+  ): Promise<{ success: boolean; message: string }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.runAsync('DELETE FROM tasks WHERE id = ?', [taskId]);
+
+    return { success: true, message: `Zadatak #${taskId} obrisan.` };
+  }
+
   // Reminders
   async createReminder(reminder: {
     message: string;

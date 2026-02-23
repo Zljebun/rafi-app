@@ -1,11 +1,14 @@
 import { db } from '../storage/database';
+import { calendar } from '../phone/calendar';
+import { notifications } from '../phone/notifications';
 
 // Claude tool definitions for RAFI agent
 export const tools = [
+  // --- Task Management ---
   {
     name: 'create_task',
     description:
-      'Kreira novi zadatak/obavezu za korisnika. Koristi za bilo koji zahtjev tipa "podsjeti me", "dodaj obavezu", "moram da..."',
+      'Kreira novi zadatak/obavezu za korisnika. Koristi za "podsjeti me", "dodaj obavezu", "moram da...", "zapamti da trebam..."',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -33,14 +36,14 @@ export const tools = [
   {
     name: 'list_tasks',
     description:
-      'Prikazuje listu korisnikovih zadataka. Koristi kad korisnik pita "šta imam danas", "moje obaveze", itd.',
+      'Prikazuje listu korisnikovih zadataka. Koristi kad korisnik pita "šta imam danas", "moje obaveze", "lista zadataka".',
     input_schema: {
       type: 'object' as const,
       properties: {
         status: {
           type: 'string',
           enum: ['pending', 'completed', 'all'],
-          description: 'Filter po statusu',
+          description: 'Filter po statusu (default: pending)',
         },
         date: {
           type: 'string',
@@ -51,7 +54,7 @@ export const tools = [
   },
   {
     name: 'complete_task',
-    description: 'Označava zadatak kao završen.',
+    description: 'Označava zadatak kao završen. Koristi kad korisnik kaže "završio sam", "obavio sam", "done".',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -64,9 +67,115 @@ export const tools = [
     },
   },
   {
+    name: 'edit_task',
+    description: 'Mijenja postojeći zadatak - naslov, opis, prioritet ili rok.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        task_id: {
+          type: 'number',
+          description: 'ID zadatka za izmjenu',
+        },
+        title: {
+          type: 'string',
+          description: 'Novi naslov (opciono)',
+        },
+        description: {
+          type: 'string',
+          description: 'Novi opis (opciono)',
+        },
+        due_date: {
+          type: 'string',
+          description: 'Novi rok u ISO formatu (opciono)',
+        },
+        priority: {
+          type: 'string',
+          enum: ['low', 'medium', 'high'],
+          description: 'Novi prioritet (opciono)',
+        },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'delete_task',
+    description: 'Briše zadatak. Koristi kad korisnik kaže "obriši zadatak", "ukloni obavezu".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        task_id: {
+          type: 'number',
+          description: 'ID zadatka za brisanje',
+        },
+      },
+      required: ['task_id'],
+    },
+  },
+
+  // --- Calendar ---
+  {
+    name: 'read_calendar',
+    description:
+      'Čita događaje iz kalendara telefona. Koristi kad korisnik pita "šta imam u kalendaru", "moji sastanci", "raspored za sutra".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        start_date: {
+          type: 'string',
+          description: 'Početni datum za pretragu (ISO format, default: danas)',
+        },
+        end_date: {
+          type: 'string',
+          description: 'Krajnji datum za pretragu (ISO format, default: +7 dana)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maksimalan broj rezultata (default: 20)',
+        },
+      },
+    },
+  },
+  {
+    name: 'create_event',
+    description:
+      'Dodaje novi događaj u kalendar telefona. Koristi za "dodaj u kalendar", "zakaži sastanak", "napravi event".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Naziv događaja',
+        },
+        start_date: {
+          type: 'string',
+          description: 'Početak događaja u ISO formatu',
+        },
+        end_date: {
+          type: 'string',
+          description: 'Kraj događaja u ISO formatu (opciono, default: +1h)',
+        },
+        location: {
+          type: 'string',
+          description: 'Lokacija događaja (opciono)',
+        },
+        notes: {
+          type: 'string',
+          description: 'Bilješke za događaj (opciono)',
+        },
+        all_day: {
+          type: 'boolean',
+          description: 'Da li je cjelodnevni događaj (default: false)',
+        },
+      },
+      required: ['title', 'start_date'],
+    },
+  },
+
+  // --- Reminders/Notifications ---
+  {
     name: 'set_reminder',
     description:
-      'Postavlja podsjetnik/notifikaciju za određeno vrijeme.',
+      'Postavlja podsjetnik/notifikaciju koja će se pojaviti u određeno vrijeme. Koristi za "podsjeti me u 9", "javi mi za sat vremena".',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -83,12 +192,55 @@ export const tools = [
     },
   },
   {
-    name: 'get_routine_info',
-    description:
-      'Vraća informacije o naučenim rutinama korisnika. Koristi za savjete o optimizaciji.',
+    name: 'list_reminders',
+    description: 'Prikazuje zakazane podsjetnike.',
     input_schema: {
       type: 'object' as const,
       properties: {},
+    },
+  },
+  {
+    name: 'cancel_reminder',
+    description: 'Otkazuje zakazani podsjetnik.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        notification_id: {
+          type: 'string',
+          description: 'ID notifikacije za otkazivanje',
+        },
+      },
+      required: ['notification_id'],
+    },
+  },
+
+  // --- Routines & Insights ---
+  {
+    name: 'get_routine_info',
+    description:
+      'Vraća informacije o naučenim rutinama korisnika. Koristi za savjete o optimizaciji vremena.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'save_preference',
+    description:
+      'Pamti korisnikovu preferencu. Koristi kad korisnik kaže "zapamti da volim...", "uvijek želim...".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        key: {
+          type: 'string',
+          description: 'Ključ preference (npr. "wake_time", "favorite_coffee")',
+        },
+        value: {
+          type: 'string',
+          description: 'Vrijednost preference',
+        },
+      },
+      required: ['key', 'value'],
     },
   },
 ];
@@ -98,34 +250,110 @@ export async function handleToolCall(
   toolName: string,
   input: Record<string, unknown>
 ): Promise<unknown> {
-  switch (toolName) {
-    case 'create_task':
-      return db.createTask({
-        title: input.title as string,
-        description: (input.description as string) || '',
-        dueDate: (input.due_date as string) || null,
-        priority: (input.priority as string) || 'medium',
-      });
+  try {
+    switch (toolName) {
+      // Task Management
+      case 'create_task':
+        return db.createTask({
+          title: input.title as string,
+          description: (input.description as string) || '',
+          dueDate: (input.due_date as string) || null,
+          priority: (input.priority as string) || 'medium',
+        });
 
-    case 'list_tasks':
-      return db.getTasks({
-        status: (input.status as string) || 'pending',
-        date: (input.date as string) || undefined,
-      });
+      case 'list_tasks':
+        return db.getTasks({
+          status: (input.status as string) || 'pending',
+          date: (input.date as string) || undefined,
+        });
 
-    case 'complete_task':
-      return db.completeTask(input.task_id as number);
+      case 'complete_task':
+        return db.completeTask(input.task_id as number);
 
-    case 'set_reminder':
-      return db.createReminder({
-        message: input.message as string,
-        datetime: input.datetime as string,
-      });
+      case 'edit_task':
+        return db.editTask(input.task_id as number, {
+          title: input.title as string | undefined,
+          description: input.description as string | undefined,
+          dueDate: input.due_date as string | undefined,
+          priority: input.priority as string | undefined,
+        });
 
-    case 'get_routine_info':
-      return db.getRoutines();
+      case 'delete_task':
+        return db.deleteTask(input.task_id as number);
 
-    default:
-      return { error: `Nepoznat tool: ${toolName}` };
+      // Calendar
+      case 'read_calendar':
+        return calendar.getEvents({
+          startDate: input.start_date as string | undefined,
+          endDate: input.end_date as string | undefined,
+          limit: input.limit as number | undefined,
+        });
+
+      case 'create_event':
+        return calendar.createEvent({
+          title: input.title as string,
+          startDate: input.start_date as string,
+          endDate: input.end_date as string | undefined,
+          location: input.location as string | undefined,
+          notes: input.notes as string | undefined,
+          allDay: input.all_day as boolean | undefined,
+        });
+
+      // Reminders
+      case 'set_reminder': {
+        // Save to DB and schedule notification
+        const dbResult = await db.createReminder({
+          message: input.message as string,
+          datetime: input.datetime as string,
+        });
+        const notifResult = await notifications.scheduleReminder({
+          message: input.message as string,
+          datetime: input.datetime as string,
+        });
+        return {
+          ...dbResult,
+          notification: notifResult.success
+            ? notifResult.message
+            : notifResult.message,
+        };
+      }
+
+      case 'list_reminders': {
+        const scheduled = await notifications.getScheduled();
+        return {
+          success: true,
+          reminders: scheduled.map((n) => ({
+            id: n.identifier,
+            title: n.content.title,
+            message: n.content.body,
+            trigger: n.trigger,
+          })),
+          count: scheduled.length,
+        };
+      }
+
+      case 'cancel_reminder':
+        await notifications.cancelNotification(input.notification_id as string);
+        return { success: true, message: 'Podsjetnik otkazan.' };
+
+      // Routines & Preferences
+      case 'get_routine_info':
+        return db.getRoutines();
+
+      case 'save_preference':
+        await db.setPreference(input.key as string, input.value as string);
+        return {
+          success: true,
+          message: `Zapamtio sam: ${input.key} = ${input.value}`,
+        };
+
+      default:
+        return { error: `Nepoznat tool: ${toolName}` };
+    }
+  } catch (error) {
+    return {
+      error: true,
+      message: error instanceof Error ? error.message : 'Nepoznata greška pri izvršavanju.',
+    };
   }
 }
