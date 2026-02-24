@@ -8,15 +8,17 @@ export interface Message {
   content: string;
 }
 
+interface ContentBlock {
+  type: 'text' | 'tool_use';
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+}
+
 interface ClaudeResponse {
   id: string;
-  content: Array<{
-    type: 'text' | 'tool_use';
-    text?: string;
-    id?: string;
-    name?: string;
-    input?: Record<string, unknown>;
-  }>;
+  content: ContentBlock[];
   stop_reason: string;
 }
 
@@ -34,7 +36,7 @@ class ClaudeService {
 
   async sendMessage(userMessage: string): Promise<string> {
     if (!this.apiKey) {
-      throw new Error('Claude API key not configured. Call configure() first.');
+      throw new Error('API ključ nije podešen. Idi u Postavke i unesi Claude API key.');
     }
 
     this.conversationHistory.push({
@@ -76,7 +78,7 @@ class ClaudeService {
         return textContent?.text || 'Nemam odgovor za to.';
       }
 
-      // Execute the tool and continue the conversation
+      // Execute the local tool and continue the conversation
       const toolResult = await handleToolCall(
         toolUse.name,
         toolUse.input || {}
@@ -114,7 +116,7 @@ class ClaudeService {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: RAFI_SYSTEM_PROMPT,
         tools,
         messages,

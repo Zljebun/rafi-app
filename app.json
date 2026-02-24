@@ -31,8 +31,18 @@
         "READ_CALENDAR",
         "WRITE_CALENDAR",
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM"
-      ]
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "RECORD_AUDIO",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
+      "package": "com.anonymous.rafiapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -51,7 +61,8 @@
           "icon": "./assets/icon.png",
           "color": "#6C63FF"
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

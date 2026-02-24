@@ -5,9 +5,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from './src/services/storage/database';
 import { notifications } from './src/services/phone/notifications';
+import { secureStore } from './src/services/storage/secureStore';
+import { claude } from './src/services/ai/claude';
+import { whisperVoice } from './src/services/voice/whisper';
+import { googleSearch } from './src/services/search/google';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { InsightsScreen } from './src/screens/InsightsScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,6 +21,23 @@ export default function App() {
     async function init() {
       await db.init();
       await notifications.init();
+
+      // Load saved API keys
+      const [claudeKey, openaiKey, googleKeys] = await Promise.all([
+        secureStore.getClaudeKey(),
+        secureStore.getOpenAIKey(),
+        secureStore.getGoogleSearchKeys(),
+      ]);
+
+      if (claudeKey) {
+        claude.configure(claudeKey);
+      }
+      if (openaiKey) {
+        whisperVoice.configure(openaiKey);
+      }
+      if (googleKeys.apiKey && googleKeys.cx) {
+        googleSearch.configure(googleKeys.apiKey, googleKeys.cx);
+      }
     }
     init().catch(console.error);
   }, []);
@@ -33,6 +55,8 @@ export default function App() {
               iconName = focused ? 'checkbox' : 'checkbox-outline';
             } else if (route.name === 'Uvidi') {
               iconName = focused ? 'bulb' : 'bulb-outline';
+            } else if (route.name === 'Postavke') {
+              iconName = focused ? 'settings' : 'settings-outline';
             }
             return <Ionicons name={iconName} size={size} color={color} />;
           },
@@ -56,6 +80,11 @@ export default function App() {
           name="Uvidi"
           component={InsightsScreen}
           options={{ headerTitle: 'Uvidi' }}
+        />
+        <Tab.Screen
+          name="Postavke"
+          component={SettingsScreen}
+          options={{ headerTitle: 'Postavke' }}
         />
       </Tab.Navigator>
     </NavigationContainer>

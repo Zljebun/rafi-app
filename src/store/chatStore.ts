@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { claude, Message } from '../services/ai/claude';
 import { agentCore } from '../agent/core';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 interface ChatMessage {
   id: string;
@@ -15,6 +17,7 @@ interface ChatState {
   error: string | null;
   sendMessage: (text: string) => Promise<void>;
   clearChat: () => void;
+  exportChat: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -86,6 +89,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       ],
       error: null,
+    });
+  },
+
+  exportChat: async () => {
+    const { messages } = get();
+    const lines = messages.map((m) => {
+      const time = m.timestamp.toLocaleString();
+      const who = m.role === 'user' ? 'Ti' : 'RAFI';
+      return `[${time}] ${who}:\n${m.content}\n`;
+    });
+    const text = lines.join('\n---\n\n');
+    const date = new Date().toISOString().slice(0, 10);
+    const fileName = `RAFI-chat-${date}.txt`;
+    const filePath = `${documentDirectory}${fileName}`;
+
+    await writeAsStringAsync(filePath, text, {
+      encoding: EncodingType.UTF8,
+    });
+
+    await Sharing.shareAsync(filePath, {
+      mimeType: 'text/plain',
+      dialogTitle: 'Sačuvaj konverzaciju',
     });
   },
 }));

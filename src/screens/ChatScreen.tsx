@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   FlatList,
@@ -6,25 +6,40 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput } from '../components/ChatInput';
 import { SuggestionsRow } from '../components/SuggestionCard';
 import { useChatStore } from '../store/chatStore';
-import { voiceRecognition } from '../services/voice/recognition';
-import { voiceSynthesis } from '../services/voice/synthesis';
+import { whisperVoice } from '../services/voice/whisper';
 
 export function ChatScreen() {
-  const { messages, isLoading, sendMessage } = useChatStore();
+  const { messages, isLoading, sendMessage, exportChat } = useChatStore();
   const [isListening, setIsListening] = useState(false);
-  const [voiceText, setVoiceText] = useState('');
   const flatListRef = useRef<FlatList>(null);
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleExport}
+          style={{ marginRight: 12, padding: 4 }}
+        >
+          <Ionicons name="share-outline" size={22} color="#6C63FF" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   useEffect(() => {
-    voiceRecognition.init({
+    whisperVoice.init({
       onResult: (text) => {
-        setVoiceText(text);
         setIsListening(false);
+        handleSend(text);
       },
       onError: (error) => {
         Alert.alert('Greška', error);
@@ -34,27 +49,9 @@ export function ChatScreen() {
     });
 
     return () => {
-      voiceRecognition.destroy();
+      whisperVoice.destroy();
     };
   }, []);
-
-  // Auto-send when voice recognition completes with text
-  useEffect(() => {
-    if (voiceText && !isListening) {
-      handleSend(voiceText);
-      setVoiceText('');
-    }
-  }, [voiceText, isListening]);
-
-  // Speak RAFI's responses
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role === 'assistant' && messages.length > 1) {
-      // Only speak if the previous message before this was voice-triggered
-      // For now, we don't auto-speak to avoid annoyance
-      // User can enable this in settings later
-    }
-  }, [messages]);
 
   const handleSend = async (text: string) => {
     await sendMessage(text);
@@ -62,16 +59,20 @@ export function ChatScreen() {
 
   const handleMicPress = async () => {
     try {
-      if (isListening) {
-        await voiceRecognition.stopListening();
-      } else {
-        await voiceRecognition.startListening();
-      }
+      await whisperVoice.toggle();
     } catch {
       Alert.alert(
         'Mikrofon',
         'Nije moguće pristupiti mikrofonu. Provjeri dozvole u postavkama.'
       );
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportChat();
+    } catch {
+      Alert.alert('Greška', 'Nije moguće eksportovati konverzaciju.');
     }
   };
 

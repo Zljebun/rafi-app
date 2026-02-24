@@ -4,6 +4,7 @@ import { notifications } from '../phone/notifications';
 import { scheduler } from '../../agent/scheduler';
 import { optimizer } from '../../agent/optimizer';
 import { agentCore } from '../../agent/core';
+import { googleSearch } from '../search/google';
 
 // Claude tool definitions for RAFI agent
 export const tools = [
@@ -275,6 +276,27 @@ export const tools = [
       properties: {},
     },
   },
+  // --- Web Search ---
+  {
+    name: 'web_search',
+    description:
+      'Pretražuje internet koristeći Google. Koristi za recepte, vijesti, informacije, savjete, bilo šta što zahtijeva aktuelne podatke s interneta.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Pojam za pretragu (na jeziku koji daje najbolje rezultate)',
+        },
+        num_results: {
+          type: 'number',
+          description: 'Broj rezultata (default: 5, max: 10)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+
   {
     name: 'get_daily_summary',
     description:
@@ -400,6 +422,27 @@ export async function handleToolCall(
 
       case 'get_daily_summary':
         return agentCore.getDailySummary();
+
+      // Web Search
+      case 'web_search': {
+        if (!googleSearch.isConfigured()) {
+          return { error: true, message: 'Google Search nije podešen. Korisnik treba unijeti Google API key u Postavke.' };
+        }
+        const results = await googleSearch.search(
+          input.query as string,
+          (input.num_results as number) || 5
+        );
+        return {
+          success: true,
+          query: input.query,
+          results: results.map((r) => ({
+            title: r.title,
+            snippet: r.snippet,
+            url: r.link,
+          })),
+          count: results.length,
+        };
+      }
 
       default:
         return { error: `Nepoznat tool: ${toolName}` };

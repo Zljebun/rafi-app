@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant';
@@ -9,6 +17,11 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) {
   const isUser = role === 'user';
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(content);
+    Alert.alert('', 'Tekst kopiran.');
+  };
 
   return (
     <View
@@ -25,6 +38,7 @@ export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) 
         ]}
       >
         <Text
+          selectable={true}
           style={[
             styles.text,
             isUser ? styles.userText : styles.assistantText,
@@ -32,6 +46,11 @@ export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) 
         >
           {content}
         </Text>
+        {!isUser && (
+          <TouchableOpacity style={styles.copyButton} onPress={handleCopy}>
+            <Ionicons name="copy-outline" size={14} color="#999" />
+          </TouchableOpacity>
+        )}
       </View>
       <Text
         style={[
@@ -89,6 +108,11 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: '#1A1A2E',
+  },
+  copyButton: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    padding: 2,
   },
   time: {
     fontSize: 10,
