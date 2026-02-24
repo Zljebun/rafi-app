@@ -17,7 +17,8 @@ import { useChatStore } from '../store/chatStore';
 import { whisperVoice } from '../services/voice/whisper';
 
 export function ChatScreen() {
-  const { messages, isLoading, sendMessage, exportChat } = useChatStore();
+  const { messages, isLoading, sendMessage, exportChat, ttsEnabled, toggleTTS } =
+    useChatStore();
   const [isListening, setIsListening] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
@@ -25,15 +26,27 @@ export function ChatScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={handleExport}
-          style={{ marginRight: 12, padding: 4 }}
-        >
-          <Ionicons name="share-outline" size={22} color="#6C63FF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity
+            onPress={toggleTTS}
+            style={{ padding: 6 }}
+          >
+            <Ionicons
+              name={ttsEnabled ? 'volume-high' : 'volume-mute-outline'}
+              size={22}
+              color={ttsEnabled ? '#6C63FF' : '#999'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleExport}
+            style={{ marginRight: 12, padding: 6 }}
+          >
+            <Ionicons name="share-outline" size={22} color="#6C63FF" />
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [navigation]);
+  }, [navigation, ttsEnabled]);
 
   useEffect(() => {
     whisperVoice.init({

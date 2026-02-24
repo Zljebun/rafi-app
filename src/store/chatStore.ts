@@ -3,6 +3,7 @@ import { claude, Message } from '../services/ai/claude';
 import { agentCore } from '../agent/core';
 import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { voiceSynthesis } from '../services/voice/synthesis';
 
 interface ChatMessage {
   id: string;
@@ -15,9 +16,11 @@ interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
+  ttsEnabled: boolean;
   sendMessage: (text: string) => Promise<void>;
   clearChat: () => void;
   exportChat: () => Promise<void>;
+  toggleTTS: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -32,6 +35,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   ],
   isLoading: false,
   error: null,
+  ttsEnabled: false,
 
   sendMessage: async (text: string) => {
     const userMessage: ChatMessage = {
@@ -68,6 +72,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: [...state.messages, assistantMessage],
         isLoading: false,
       }));
+
+      // Speak response if TTS is enabled
+      if (get().ttsEnabled) {
+        voiceSynthesis.speak(response).catch(() => {});
+      }
     } catch (error) {
       set({
         isLoading: false,
@@ -90,6 +99,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ],
       error: null,
     });
+  },
+
+  toggleTTS: () => {
+    const newState = !get().ttsEnabled;
+    if (!newState) {
+      voiceSynthesis.stop();
+    }
+    set({ ttsEnabled: newState });
   },
 
   exportChat: async () => {

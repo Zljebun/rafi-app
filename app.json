@@ -62,7 +62,13 @@
           "color": "#6C63FF"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "RAFI koristi mikrofon za glasovni unos."
+        }
+      ]
     ]
   }
 }
