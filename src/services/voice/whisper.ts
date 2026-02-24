@@ -61,12 +61,10 @@ class WhisperVoiceService {
         staysActiveInBackground: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        {
-          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
-          isMeteringEnabled: true,
-        }
-      );
+      const { recording } = await Audio.Recording.createAsync({
+        ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        isMeteringEnabled: true,
+      });
 
       this.recording = recording;
       this.isRecording = true;
@@ -74,7 +72,6 @@ class WhisperVoiceService {
       this.recordingStart = Date.now();
       this.onStateChange?.(true);
 
-      // Start monitoring audio levels for silence detection
       if (this.autoStopEnabled) {
         this.monitorSilence();
       }
@@ -95,7 +92,6 @@ class WhisperVoiceService {
 
         const elapsed = Date.now() - this.recordingStart;
         if (elapsed < MIN_RECORDING_DURATION) {
-          // Too early, keep checking
           setTimeout(check, 200);
           return;
         }
@@ -103,16 +99,13 @@ class WhisperVoiceService {
         const metering = status.metering ?? -160;
 
         if (metering < SILENCE_THRESHOLD) {
-          // Silence detected
           if (this.silenceStart === 0) {
             this.silenceStart = Date.now();
           } else if (Date.now() - this.silenceStart >= SILENCE_DURATION) {
-            // Enough silence - auto stop
             await this.stopRecording();
             return;
           }
         } else {
-          // Sound detected - reset silence timer
           this.silenceStart = 0;
         }
 

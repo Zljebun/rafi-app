@@ -20,6 +20,7 @@ class VoiceSynthesisService {
     }
 
     this.speaking = true;
+    const cleanedText = cleanTextForSpeech(text);
     const filePath = `${documentDirectory}rafi-tts-${Date.now()}.mp3`;
 
     try {
@@ -29,7 +30,6 @@ class VoiceSynthesisService {
         allowsRecordingIOS: false,
       });
 
-      // Fetch audio from OpenAI
       const response = await fetch(TTS_API_URL, {
         method: 'POST',
         headers: {
@@ -38,7 +38,7 @@ class VoiceSynthesisService {
         },
         body: JSON.stringify({
           model: 'tts-1',
-          input: text.substring(0, 4096),
+          input: cleanedText.substring(0, 4096),
           voice: 'alloy',
           response_format: 'mp3',
         }),
@@ -65,7 +65,7 @@ class VoiceSynthesisService {
 
       // Play audio
       try {
-        const { sound, status } = await Audio.Sound.createAsync(
+        const { sound } = await Audio.Sound.createAsync(
           { uri: filePath },
           { shouldPlay: true, volume: 1.0 }
         );
@@ -112,12 +112,28 @@ class VoiceSynthesisService {
   }
 }
 
+function cleanTextForSpeech(text: string): string {
+  let cleaned = text;
+
+  // Remove emojis
+  cleaned = cleaned.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, '');
+
+  // Remove markdown formatting
+  cleaned = cleaned
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`(.*?)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '');
+
+  return cleaned.trim();
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Remove data:...;base64, prefix
       const commaIdx = result.indexOf(',');
       const base64 = commaIdx >= 0 ? result.substring(commaIdx + 1) : result;
       resolve(base64);

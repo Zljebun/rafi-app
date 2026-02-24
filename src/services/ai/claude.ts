@@ -117,7 +117,7 @@ class ClaudeService {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
-        system: RAFI_SYSTEM_PROMPT,
+        system: RAFI_SYSTEM_PROMPT + `\n\n## Trenutno vrijeme\n${new Date().toLocaleString('sr-Latn-RS', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Belgrade' })}`,
         tools,
         messages,
       }),

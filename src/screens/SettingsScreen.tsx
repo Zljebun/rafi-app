@@ -129,13 +129,13 @@ export function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons name="mic" size={20} color="#6C63FF" />
-          <Text style={styles.sectionTitle}>OpenAI Whisper (Voice)</Text>
+          <Text style={styles.sectionTitle}>OpenAI (Voice)</Text>
           {hasOpenaiKey && (
             <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
           )}
         </View>
         <Text style={styles.description}>
-          OpenAI API ključ za voice-to-text (Whisper).
+          OpenAI API ključ za voice-to-text (Whisper) i text-to-speech.
         </Text>
         <TextInput
           style={styles.input}
