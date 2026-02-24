@@ -134,11 +134,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toggleConversationMode: () => {
     const newState = !get().conversationMode;
     if (newState) {
-      // Enable: turn on TTS and start listening
+      // Enable: turn on TTS, auto-stop silence detection, start listening
+      whisperVoice.setAutoStop(true);
       set({ conversationMode: true, ttsEnabled: true });
       whisperVoice.startRecording().catch(() => {});
     } else {
       // Disable: stop everything
+      whisperVoice.setAutoStop(false);
       voiceSynthesis.stop();
       whisperVoice.stopRecording().catch(() => {});
       set({ conversationMode: false, isListening: false });

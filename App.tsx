@@ -8,6 +8,7 @@ import { notifications } from './src/services/phone/notifications';
 import { secureStore } from './src/services/storage/secureStore';
 import { claude } from './src/services/ai/claude';
 import { whisperVoice } from './src/services/voice/whisper';
+import { voiceSynthesis } from './src/services/voice/synthesis';
 import { googleSearch } from './src/services/search/google';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
@@ -34,6 +35,7 @@ export default function App() {
       }
       if (openaiKey) {
         whisperVoice.configure(openaiKey);
+        voiceSynthesis.configure(openaiKey);
       }
       if (googleKeys.apiKey && googleKeys.cx) {
         googleSearch.configure(googleKeys.apiKey, googleKeys.cx);

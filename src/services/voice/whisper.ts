@@ -4,6 +4,11 @@ import { getInfoAsync, deleteAsync } from 'expo-file-system/legacy';
 const WHISPER_API_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const MODEL = 'whisper-1';
 
+// Silence detection settings
+const SILENCE_THRESHOLD = -40; // dB - below this is "silence"
+const SILENCE_DURATION = 2000; // ms of silence before auto-stop
+const MIN_RECORDING_DURATION = 500; // ms - minimum recording time before silence detection kicks in
+
 type OnResultCallback = (text: string) => void;
 type OnErrorCallback = (error: string) => void;
 type OnStateCallback = (recording: boolean) => void;
@@ -15,6 +20,9 @@ class WhisperVoiceService {
   private onError: OnErrorCallback | null = null;
   private onStateChange: OnStateCallback | null = null;
   private isRecording = false;
+  private silenceStart: number = 0;
+  private recordingStart: number = 0;
+  private autoStopEnabled = false;
 
   configure(apiKey: string) {
     this.apiKey = apiKey;
@@ -28,6 +36,10 @@ class WhisperVoiceService {
     this.onResult = callbacks.onResult;
     this.onError = callbacks.onError;
     this.onStateChange = callbacks.onStateChange;
+  }
+
+  setAutoStop(enabled: boolean) {
+    this.autoStopEnabled = enabled;
   }
 
   async startRecording(): Promise<void> {
@@ -50,17 +62,67 @@ class WhisperVoiceService {
       });
 
       const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
+        {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+          isMeteringEnabled: true,
+        }
       );
 
       this.recording = recording;
       this.isRecording = true;
+      this.silenceStart = 0;
+      this.recordingStart = Date.now();
       this.onStateChange?.(true);
+
+      // Start monitoring audio levels for silence detection
+      if (this.autoStopEnabled) {
+        this.monitorSilence();
+      }
     } catch (error) {
       this.onError?.('Greška pri pokretanju snimanja.');
       this.isRecording = false;
       this.onStateChange?.(false);
     }
+  }
+
+  private monitorSilence() {
+    const check = async () => {
+      if (!this.isRecording || !this.recording || !this.autoStopEnabled) return;
+
+      try {
+        const status = await this.recording.getStatusAsync();
+        if (!status.isRecording) return;
+
+        const elapsed = Date.now() - this.recordingStart;
+        if (elapsed < MIN_RECORDING_DURATION) {
+          // Too early, keep checking
+          setTimeout(check, 200);
+          return;
+        }
+
+        const metering = status.metering ?? -160;
+
+        if (metering < SILENCE_THRESHOLD) {
+          // Silence detected
+          if (this.silenceStart === 0) {
+            this.silenceStart = Date.now();
+          } else if (Date.now() - this.silenceStart >= SILENCE_DURATION) {
+            // Enough silence - auto stop
+            await this.stopRecording();
+            return;
+          }
+        } else {
+          // Sound detected - reset silence timer
+          this.silenceStart = 0;
+        }
+
+        setTimeout(check, 200);
+      } catch {
+        // Recording might have stopped
+      }
+    };
+
+    setTimeout(check, 500);
   }
 
   async stopRecording(): Promise<void> {
@@ -89,14 +151,12 @@ class WhisperVoiceService {
 
   private async transcribe(audioUri: string): Promise<void> {
     try {
-      // Read file as base64 and create form data
       const fileInfo = await getInfoAsync(audioUri);
       if (!fileInfo.exists) {
         this.onError?.('Audio fajl nije pronađen.');
         return;
       }
 
-      // Use fetch with FormData for multipart upload
       const formData = new FormData();
       formData.append('file', {
         uri: audioUri,
@@ -104,7 +164,7 @@ class WhisperVoiceService {
         name: 'recording.m4a',
       } as any);
       formData.append('model', MODEL);
-      formData.append('language', 'sr'); // Serbian
+      formData.append('language', 'sr');
 
       const response = await fetch(WHISPER_API_URL, {
         method: 'POST',
@@ -128,7 +188,6 @@ class WhisperVoiceService {
         this.onError?.('Nisam razumio. Pokušaj ponovo.');
       }
 
-      // Clean up audio file
       await deleteAsync(audioUri, { idempotent: true });
     } catch (error) {
       const msg =

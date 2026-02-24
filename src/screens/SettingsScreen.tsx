@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { secureStore } from '../services/storage/secureStore';
 import { claude } from '../services/ai/claude';
 import { whisperVoice } from '../services/voice/whisper';
+import { voiceSynthesis } from '../services/voice/synthesis';
 import { googleSearch } from '../services/search/google';
 
 export function SettingsScreen() {
@@ -75,6 +76,7 @@ export function SettingsScreen() {
       if (trimmedOpenai) {
         await secureStore.saveOpenAIKey(trimmedOpenai);
         whisperVoice.configure(trimmedOpenai);
+        voiceSynthesis.configure(trimmedOpenai);
         setHasOpenaiKey(true);
       }
 
