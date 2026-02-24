@@ -46,6 +46,7 @@ class WhisperVoiceService {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
       });
 
       const { recording } = await Audio.Recording.createAsync(

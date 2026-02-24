@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useRef, useEffect, useLayoutEffect } from 'react';
 import {
   View,
   FlatList,
@@ -17,16 +17,38 @@ import { useChatStore } from '../store/chatStore';
 import { whisperVoice } from '../services/voice/whisper';
 
 export function ChatScreen() {
-  const { messages, isLoading, sendMessage, exportChat, ttsEnabled, toggleTTS } =
-    useChatStore();
-  const [isListening, setIsListening] = useState(false);
+  const {
+    messages,
+    isLoading,
+    isListening,
+    sendMessage,
+    exportChat,
+    ttsEnabled,
+    toggleTTS,
+    conversationMode,
+    toggleConversationMode,
+    setIsListening,
+  } = useChatStore();
   const flatListRef = useRef<FlatList>(null);
   const navigation = useNavigation();
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <TouchableOpacity
+            onPress={toggleConversationMode}
+            style={[
+              { padding: 6, borderRadius: 16 },
+              conversationMode && { backgroundColor: '#6C63FF20' },
+            ]}
+          >
+            <Ionicons
+              name={conversationMode ? 'headset' : 'headset-outline'}
+              size={22}
+              color={conversationMode ? '#6C63FF' : '#999'}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={toggleTTS}
             style={{ padding: 6 }}
@@ -46,7 +68,7 @@ export function ChatScreen() {
         </View>
       ),
     });
-  }, [navigation, ttsEnabled]);
+  }, [navigation, ttsEnabled, conversationMode]);
 
   useEffect(() => {
     whisperVoice.init({
@@ -55,8 +77,15 @@ export function ChatScreen() {
         handleSend(text);
       },
       onError: (error) => {
-        Alert.alert('Greška', error);
         setIsListening(false);
+        if (conversationMode) {
+          // In conversation mode, restart listening after error
+          setTimeout(() => {
+            whisperVoice.startRecording().catch(() => {});
+          }, 1000);
+        } else {
+          Alert.alert('Greška', error);
+        }
       },
       onStateChange: setIsListening,
     });
@@ -64,13 +93,18 @@ export function ChatScreen() {
     return () => {
       whisperVoice.destroy();
     };
-  }, []);
+  }, [conversationMode]);
 
   const handleSend = async (text: string) => {
     await sendMessage(text);
   };
 
   const handleMicPress = async () => {
+    if (conversationMode) {
+      // In conversation mode, mic button stops the mode
+      toggleConversationMode();
+      return;
+    }
     try {
       await whisperVoice.toggle();
     } catch {

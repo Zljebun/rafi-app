@@ -4,6 +4,7 @@ import { agentCore } from '../agent/core';
 import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { voiceSynthesis } from '../services/voice/synthesis';
+import { whisperVoice } from '../services/voice/whisper';
 
 interface ChatMessage {
   id: string;
@@ -17,10 +18,14 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
   ttsEnabled: boolean;
+  conversationMode: boolean;
+  isListening: boolean;
   sendMessage: (text: string) => Promise<void>;
   clearChat: () => void;
   exportChat: () => Promise<void>;
   toggleTTS: () => void;
+  toggleConversationMode: () => void;
+  setIsListening: (val: boolean) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -36,6 +41,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: false,
   error: null,
   ttsEnabled: false,
+  conversationMode: false,
+  isListening: false,
+
+  setIsListening: (val: boolean) => set({ isListening: val }),
 
   sendMessage: async (text: string) => {
     const userMessage: ChatMessage = {
@@ -73,9 +82,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         isLoading: false,
       }));
 
-      // Speak response if TTS is enabled
-      if (get().ttsEnabled) {
-        voiceSynthesis.speak(response).catch(() => {});
+      // Speak response if TTS or conversation mode is enabled
+      const { ttsEnabled, conversationMode } = get();
+      if (ttsEnabled || conversationMode) {
+        await voiceSynthesis.speak(response);
+        // After speaking, auto-listen again in conversation mode
+        if (get().conversationMode) {
+          setTimeout(() => {
+            whisperVoice.startRecording().catch(() => {});
+          }, 300);
+        }
       }
     } catch (error) {
       set({
@@ -83,6 +99,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         error:
           error instanceof Error ? error.message : 'Greška u komunikaciji sa AI',
       });
+      // Even on error, restart listening in conversation mode
+      if (get().conversationMode) {
+        setTimeout(() => {
+          whisperVoice.startRecording().catch(() => {});
+        }, 1000);
+      }
     }
   },
 
@@ -107,6 +129,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
       voiceSynthesis.stop();
     }
     set({ ttsEnabled: newState });
+  },
+
+  toggleConversationMode: () => {
+    const newState = !get().conversationMode;
+    if (newState) {
+      // Enable: turn on TTS and start listening
+      set({ conversationMode: true, ttsEnabled: true });
+      whisperVoice.startRecording().catch(() => {});
+    } else {
+      // Disable: stop everything
+      voiceSynthesis.stop();
+      whisperVoice.stopRecording().catch(() => {});
+      set({ conversationMode: false, isListening: false });
+    }
   },
 
   exportChat: async () => {
